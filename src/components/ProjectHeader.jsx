@@ -36,6 +36,9 @@ const ProjectHeader = ({ project, onUpdate }) => {
             </Button>
           </div>
           <p className="text-gray-600">{project.description || "No description provided."}</p>
+          {project.updatedAt && (
+            <p className="text-xs text-gray-500">Last updated: {new Date(project.updatedAt).toLocaleString()}</p>
+          )}
         </div>
       ) : (
         <div className="space-y-4">

@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue 
 } from "@/components/ui/select";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const getRoleColor = (role) => {
@@ -35,22 +35,31 @@ const getRoleColor = (role) => {
 };
 
 const MembersList = ({ members, onAddMember, onRemoveMember }) => {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("Viewer");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const handleAddMember = () => {
-    if (email) {
-      onAddMember({
-        id: Date.now().toString(),
-        name: email.split('@')[0],
-        email,
-        role,
-        avatar: null
-      });
-      setEmail("");
-      setRole("Viewer");
-      setIsDialogOpen(false);
+  const handleAddMember = async () => {
+    if (email && name) {
+      setIsSubmitting(true);
+      try {
+        await onAddMember({
+          name,
+          email,
+          role,
+          avatar: null
+        });
+        setName("");
+        setEmail("");
+        setRole("Viewer");
+        setIsDialogOpen(false);
+      } catch (error) {
+        console.error("Error adding member:", error);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -70,6 +79,17 @@ const MembersList = ({ members, onAddMember, onRemoveMember }) => {
               <DialogTitle>Add Team Member</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label htmlFor="name" className="text-sm font-medium text-gray-700">
+                  Full Name
+                </label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="John Doe"
+                />
+              </div>
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium text-gray-700">
                   Email Address
@@ -102,44 +122,59 @@ const MembersList = ({ members, onAddMember, onRemoveMember }) => {
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleAddMember}>Add Team Member</Button>
+              <Button onClick={handleAddMember} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  "Add Team Member"
+                )}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
       
       <div className="divide-y divide-gray-100">
-        {members.map((member) => (
-          <div key={member.id} className="flex items-center justify-between py-3">
-            <div className="flex items-center space-x-3">
-              <Avatar>
-                <AvatarImage src={member.avatar} alt={member.name} />
-                <AvatarFallback className="bg-gray-200 text-gray-700">
-                  {member.name.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="font-medium text-gray-800">{member.name}</p>
-                <p className="text-sm text-gray-500">{member.email}</p>
+        {members.length === 0 ? (
+          <div className="py-6 text-center text-gray-500">
+            No team members yet. Add your first member to get started.
+          </div>
+        ) : (
+          members.map((member) => (
+            <div key={member.id} className="flex items-center justify-between py-3">
+              <div className="flex items-center space-x-3">
+                <Avatar>
+                  <AvatarImage src={member.avatar} alt={member.name} />
+                  <AvatarFallback className="bg-gray-200 text-gray-700">
+                    {member.name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium text-gray-800">{member.name}</p>
+                  <p className="text-sm text-gray-500">{member.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Badge className={`${getRoleColor(member.role)}`}>
+                  {member.role}
+                </Badge>
+                {member.role !== "Owner" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-gray-500 hover:text-red-500"
+                    onClick={() => onRemoveMember(member.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <Badge className={`${getRoleColor(member.role)}`}>
-                {member.role}
-              </Badge>
-              {member.role !== "Owner" && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-gray-500 hover:text-red-500"
-                  onClick={() => onRemoveMember(member.id)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
