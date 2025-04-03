@@ -130,3 +130,56 @@
 .status-completed {
   @apply border-l-green-500;
 }
+
+/* Task Status Colors */
+:root {
+  --task-todo-color: #f97316;
+  --task-progress-color: #8b5cf6;
+  --task-completed-color: #10b981;
+}
+
+.text-task-todo {
+  color: var(--task-todo-color);
+}
+
+.text-task-progress {
+  color: var(--task-progress-color);
+}
+
+.text-task-completed {
+  color: var(--task-completed-color);
+}
+
+.border-l-task-todo {
+  border-left-color: var(--task-todo-color);
+}
+
+.border-l-task-progress {
+  border-left-color: var(--task-progress-color);
+}
+
+.border-l-task-completed {
+  border-left-color: var(--task-completed-color);
+}
+
+/* Line clamp utilities */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
