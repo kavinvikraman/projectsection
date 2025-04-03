@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import psycopg2
@@ -13,9 +12,9 @@ CORS(app)  # Enable CORS for all routes
 def get_db_connection():
     conn = psycopg2.connect(
         host=os.environ.get('DB_HOST', 'localhost'),
-        database=os.environ.get('DB_NAME', 'collabhive'),
+        database=os.environ.get('DB_NAME', 'ProjectSection'),
         user=os.environ.get('DB_USER', 'postgres'),
-        password=os.environ.get('DB_PASSWORD', 'postgres'),
+        password=os.environ.get('DB_PASSWORD', 'kavin'),
         port=os.environ.get('DB_PORT', '5432')
     )
     conn.autocommit = True
@@ -70,6 +69,17 @@ def init_db():
             text TEXT,
             code TEXT,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Add chat_messages table
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id SERIAL PRIMARY KEY,
+            document_id INTEGER REFERENCES documents(id),
+            member_id INTEGER REFERENCES members(id),
+            message TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
@@ -258,26 +268,40 @@ def get_tasks():
         'projectId': task[7]
     } for task in tasks])
 
+# Replace the current create_task function with this fixed version
+
 @app.route('/api/tasks', methods=['POST'])
 def create_task():
     data = request.json
     conn = get_db_connection()
     cur = conn.cursor()
     
+    # Fix the assignee_id handling
     assignee_id = data.get('assignee')
-    if assignee_id and assignee_id.strip():
-        try:
-            assignee_id = int(assignee_id)
-        except ValueError:
+    if assignee_id:
+        # Check if it's already an integer
+        if isinstance(assignee_id, int):
+            pass  # Keep it as is
+        elif isinstance(assignee_id, str) and assignee_id.strip():
+            # Try to convert string to int
+            try:
+                assignee_id = int(assignee_id)
+            except ValueError:
+                assignee_id = None
+        else:
             assignee_id = None
     else:
         assignee_id = None
     
+    # Fix due_date handling
     due_date = data.get('dueDate')
-    if due_date and due_date.strip():
+    if due_date and isinstance(due_date, str) and due_date.strip():
         due_date = due_date
     else:
         due_date = None
+    
+    # Debug information
+    print(f"Creating task with assignee_id: {assignee_id}, type: {type(assignee_id)}")
     
     cur.execute(
         '''INSERT INTO tasks (title, description, status, assignee_id, 
@@ -366,6 +390,79 @@ def update_document(project_id):
         'code': data['code'],
         'updatedAt': updated[0].isoformat() if updated[0] else None
     })
+
+# Add these routes for chat messages
+@app.route('/api/documents/<int:document_id>/messages', methods=['GET'])
+def get_chat_messages(document_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    # Join with members table to get sender details
+    cur.execute('''
+        SELECT cm.id, cm.member_id, m.name, m.avatar, cm.message, cm.created_at
+        FROM chat_messages cm
+        JOIN members m ON cm.member_id = m.id
+        WHERE cm.document_id = %s
+        ORDER BY cm.created_at ASC
+    ''', (document_id,))
+    
+    messages = cur.fetchall()
+    cur.close()
+    conn.close()
+    
+    return jsonify([{
+        'id': msg[0],
+        'member_id': msg[1],
+        'sender_name': msg[2],
+        'sender_avatar': msg[3],
+        'message': msg[4],
+        'created_at': msg[5].isoformat() if msg[5] else None
+    } for msg in messages])
+
+@app.route('/api/documents/<int:document_id>/messages', methods=['POST'])
+def create_chat_message(document_id):
+    data = request.json
+    
+    if not data.get('member_id') or not data.get('message'):
+        return jsonify({'error': 'Member ID and message are required'}), 400
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    # First check if document exists
+    cur.execute('SELECT id FROM documents WHERE id = %s', (document_id,))
+    if not cur.fetchone():
+        cur.close()
+        conn.close()
+        return jsonify({'error': 'Document not found'}), 404
+    
+    # Insert the message
+    cur.execute(
+        'INSERT INTO chat_messages (document_id, member_id, message) VALUES (%s, %s, %s) RETURNING id, created_at',
+        (document_id, data['member_id'], data['message'])
+    )
+    
+    message_id, created_at = cur.fetchone()
+    
+    # Get member info
+    cur.execute('SELECT name, avatar FROM members WHERE id = %s', (data['member_id'],))
+    member = cur.fetchone()
+    
+    conn.commit()
+    cur.close()
+    conn.close()
+    
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+    
+    return jsonify({
+        'id': message_id,
+        'member_id': data['member_id'],
+        'sender_name': member[0],
+        'sender_avatar': member[1],
+        'message': data['message'],
+        'created_at': created_at.isoformat() if created_at else None
+    }), 201
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
