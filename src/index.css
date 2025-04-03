@@ -1,8 +1,12 @@
+<<<<<<< HEAD
 
+=======
+>>>>>>> 44b47dd18c88daa27bf14010c771e1ee2a88b35b
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+<<<<<<< HEAD
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -183,3 +187,6 @@
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
 }
+=======
+/* Additional global styles can be added below */
+>>>>>>> 44b47dd18c88daa27bf14010c771e1ee2a88b35b
